@@ -192,6 +192,23 @@ export async function startServer(
     }
   });
 
+  // Get commits in the current range for per-commit navigation
+  app.get('/api/commits-in-range', async (_req, res) => {
+    if (options.stdinDiff) {
+      res.status(400).json({ error: 'Commit navigation not available for stdin diff' });
+      return;
+    }
+
+    try {
+      const commits = await parser.getCommitsInRange(currentBaseCommitish, currentTargetCommitish);
+
+      res.json({ commits });
+    } catch (error) {
+      console.error('Error fetching commits in range:', error);
+      res.status(500).json({ error: 'Failed to fetch commits in range' });
+    }
+  });
+
   app.get(/^\/api\/line-count\/(.*)$/, async (req, res) => {
     try {
       if (options.stdinDiff) {
@@ -386,6 +403,16 @@ export async function startServer(
     options.preferredPort || 4966,
     options.host || 'localhost',
   );
+
+  const shutdown = () => {
+    outputFinalComments();
+    server.close(() => {
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
 
   // Security warning for non-localhost binding
   if (options.host && options.host !== '127.0.0.1' && options.host !== 'localhost') {

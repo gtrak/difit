@@ -627,4 +627,52 @@ export class GitDiffParser {
 
     return { branches, commits, resolvedBase, resolvedTarget };
   }
+
+  /**
+   * Get all commits between base and target (inclusive), ordered from target (newest) to base (oldest).
+   * This is used for per-commit navigation in the UI.
+   */
+  async getCommitsInRange(
+    baseCommitish: string,
+    targetCommitish: string,
+  ): Promise<
+    Array<{ hash: string; shortHash: string; message: string; author: string; date: string }>
+  > {
+    // Handle special cases - these don't have commit ranges
+    if (
+      ['working', 'staged', '.'].includes(baseCommitish) ||
+      ['working', 'staged', '.'].includes(targetCommitish)
+    ) {
+      return [];
+    }
+
+    try {
+      // Resolve commitishes to actual hashes
+      const baseHash = await this.git.revparse([baseCommitish]);
+      const targetHash = await this.git.revparse([targetCommitish]);
+
+      // Get all commits from base..target (exclusive of base, inclusive of target)
+      // We use ^baseHash to exclude the base commit itself
+      const logResult = await this.git.log({
+        from: baseHash,
+        to: targetHash,
+        symmetric: false,
+      });
+
+      // Map and reverse to get target first, then descending to base
+      const commits = logResult.all.map((commit) => ({
+        hash: commit.hash,
+        shortHash: commit.hash.substring(0, 7),
+        message: commit.message,
+        author: commit.author_name,
+        date: commit.date,
+      }));
+
+      // Reverse so target (newest) comes first
+      return commits.reverse();
+    } catch (error) {
+      console.error('Error getting commits in range:', error);
+      return [];
+    }
+  }
 }

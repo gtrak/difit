@@ -13,6 +13,7 @@ import {
 import { Checkbox } from './components/Checkbox';
 import { CommentsDropdown } from './components/CommentsDropdown';
 import { CommentsListModal } from './components/CommentsListModal';
+import { CommitSelector, type CommitInRange } from './components/CommitSelector';
 import { DiffViewer } from './components/DiffViewer';
 import { FileList } from './components/FileList';
 import { GitHubIcon } from './components/GitHubIcon';
@@ -60,6 +61,11 @@ function App() {
   const [resolvedBaseRevision, setResolvedBaseRevision] = useState<string>('');
   const [resolvedTargetRevision, setResolvedTargetRevision] = useState<string>('');
   const hasUserSelectedRevisionRef = useRef(false);
+
+  // Per-commit navigation state
+  const [commitsInRange, setCommitsInRange] = useState<CommitInRange[]>([]);
+  const [selectedCommit, setSelectedCommit] = useState<string | null>(null);
+  const [isSingleCommitView, setIsSingleCommitView] = useState(false);
 
   const { settings, updateSettings } = useAppearanceSettings();
 
@@ -461,6 +467,52 @@ function App() {
     return disabledValues;
   };
 
+  // Fetch commits in range for per-commit navigation
+  const fetchCommitsInRange = useCallback(async () => {
+    try {
+      const response = await fetch('/api/commits-in-range');
+      if (!response.ok) {
+        setCommitsInRange([]);
+        return;
+      }
+      const data = (await response.json()) as { commits: CommitInRange[] };
+      setCommitsInRange(data.commits || []);
+    } catch {
+      setCommitsInRange([]);
+    }
+  }, []);
+
+  // Fetch commits when diff data changes
+  useEffect(() => {
+    if (diffData && !diffData.commit.includes('stdin')) {
+      void fetchCommitsInRange();
+    } else {
+      setCommitsInRange([]);
+    }
+  }, [diffData?.commit, fetchCommitsInRange, diffData]);
+
+  // Handle per-commit selection
+  const handleCommitSelect = useCallback(
+    async (commitHash: string | null) => {
+      if (commitHash === null) {
+        // Switch back to range view
+        setSelectedCommit(null);
+        setIsSingleCommitView(false);
+        setLoading(true);
+        await fetchDiffData(baseRevision, targetRevision);
+      } else {
+        // View single commit (compare with its parent)
+        setSelectedCommit(commitHash);
+        setIsSingleCommitView(true);
+        setLoading(true);
+        // For single commit view, we compare the commit with its parent
+        // The parent is resolved by the server using commit^ syntax
+        await fetchDiffData(`${commitHash}^`, commitHash);
+      }
+    },
+    [baseRevision, targetRevision, fetchDiffData],
+  );
+
   // Clear comments and viewed files on initial load if requested via CLI flag
   const hasCleanedRef = useRef(false);
   useEffect(() => {
@@ -760,7 +812,12 @@ function App() {
                 />
               )}
               <div className="flex flex-col gap-1 items-center">
-                <div className="text-xs relative">
+                <div className="text-xs relative flex items-center gap-1.5">
+                  {isSingleCommitView && (
+                    <span className="px-1.5 py-0.5 bg-github-accent/10 text-github-accent rounded text-[10px] font-medium">
+                      Single commit view
+                    </span>
+                  )}
                   {viewedFiles.size === diffData.files.length ?
                     'All diffs difit-ed!'
                   : `${viewedFiles.size} / ${diffData.files.length} files viewed`}
@@ -808,6 +865,17 @@ function App() {
                     options={revisionOptions}
                     disabledValues={getTargetDisabledValues()}
                   />
+                  {commitsInRange.length > 1 && (
+                    <>
+                      <span className="text-github-text-muted">|</span>
+                      <CommitSelector
+                        commits={commitsInRange}
+                        selectedCommit={selectedCommit}
+                        onSelectCommit={handleCommitSelect}
+                        disabled={loading}
+                      />
+                    </>
+                  )}
                 </div>
               : <span>
                   Reviewing:{' '}
