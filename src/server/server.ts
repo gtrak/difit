@@ -344,19 +344,8 @@ export async function startServer(
       res.write('data: heartbeat\n\n');
     }, 5000);
 
-    // When client disconnects (tab closed, navigation, etc.)
     req.on('close', () => {
       clearInterval(heartbeatInterval);
-      // Add a small delay to ensure any pending sendBeacon requests are processed
-      setTimeout(async () => {
-        console.log('Client disconnected, shutting down server...');
-
-        // Stop file watcher
-        await fileWatcher.stop();
-
-        outputFinalComments();
-        process.exit(0);
-      }, 100);
     });
   });
 
