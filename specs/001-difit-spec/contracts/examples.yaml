@@ -1,0 +1,61 @@
+examples:
+  diffResponse:
+    value:
+      files:
+        - path: src/main.rs
+          oldPath: null
+          newPath: null
+          status: modified
+          chunks:
+            - oldStart: 10
+              oldLines: 5
+              newStart: 10
+              newLines: 7
+              lines:
+                - lineNumber: 10
+                  content: 'fn main() {'
+                  type: normal
+                - lineNumber: 11
+                  content: '    println!("Hello, World!");'
+                  type: normal
+                - lineNumber: 12
+                  content: '    println!("This is a new line.");'
+                  type: added
+
+  commentRequest:
+    value:
+      filePath: src/main.rs
+      lineNumber: 15
+      content: 'This function needs optimization'
+      author: 'john.doe'
+
+  commentResponse:
+    value:
+      id: 'comment-12345'
+      filePath: src/main.rs
+      lineNumber: 15
+      content: 'This function needs optimization'
+      author: 'john.doe'
+      createdAt: '2024-01-15T10:30:00Z'
+
+  revisionsResponse:
+    value:
+      branches:
+        - revision: 'main'
+          name: 'Main Branch'
+          type: branch
+        - revision: 'feature/login'
+          name: 'Feature Login'
+          type: branch
+      commits:
+        - revision: 'abc123'
+          name: 'Initial commit'
+          type: commit
+        - revision: 'def456'
+          name: 'Add login page'
+          type: commit
+
+  errorResponse:
+    value:
+      error: 'InvalidRequest'
+      message: 'Missing required parameters: oldRevision and newRevision'

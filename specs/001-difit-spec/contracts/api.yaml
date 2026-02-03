@@ -1,0 +1,180 @@
+openapi: 3.0.0
+info:
+  title: difit API
+  version: 1.0.0
+deservers:
+  - url: http://localhost:8080
+    description: Local development server
+paths:
+  /api/diff:
+    get:
+      summary: Get diff data between revisions
+      parameters:
+        - name: oldRevision
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: newRevision
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas.yaml#/components/schemas/DiffResponse'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas.yaml#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas.yaml#/components/schemas/Error'
+  /api/revisions:
+    get:
+      summary: Get available branches and commits
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas.yaml#/components/schemas/RevisionsResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas.yaml#/components/schemas/Error'
+  /api/comments:
+    get:
+      summary: Get all comments
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '../schemas.yaml#/components/schemas/Comment'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas.yaml#/components/schemas/Error'
+    post:
+      summary: Add a new comment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas.yaml#/components/schemas/Comment'
+      responses:
+        '201':
+          description: Comment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas.yaml#/components/schemas/Comment'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas.yaml#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas.yaml#/components/schemas/Error'
+    delete:
+      summary: Delete a comment
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Comment deleted successfully
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas.yaml#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas.yaml#/components/schemas/Error'
+  /api/viewed:
+    get:
+      summary: Get viewed files
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '../schemas.yaml#/components/schemas/ViewedFileRecord'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas.yaml#/components/schemas/Error'
+    post:
+      summary: Mark file as viewed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '../schemas.yaml#/components/schemas/ViewedFileRecord'
+      responses:
+        '201':
+          description: File marked as viewed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas.yaml#/components/schemas/ViewedFileRecord'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas.yaml#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '../schemas.yaml#/components/schemas/Error'
+  /api/watch:
+    get:
+      summary: SSE endpoint for file watching notifications
+      responses:
+        '200':
+          description: SSE stream established
+          content:
+            text/event-stream:
+              schema:
+                $ref: '../schemas.yaml#/components/schemas/SSEEvent'

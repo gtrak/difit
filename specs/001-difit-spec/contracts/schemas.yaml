@@ -1,0 +1,93 @@
+components:
+  schemas:
+    DiffFile:
+      type: object
+      properties:
+        path:
+          type: string
+        oldPath:
+          type: string
+          nullable: true
+        newPath:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [added, modified, deleted]
+    DiffChunk:
+      type: object
+      properties:
+        oldStart:
+          type: integer
+        oldLines:
+          type: integer
+        newStart:
+          type: integer
+        newLines:
+          type: integer
+        lines:
+          type: array
+          items:
+            $ref: '#/components/schemas/DiffLine'
+    DiffLine:
+      type: object
+      properties:
+        lineNumber:
+          type: integer
+        content:
+          type: string
+        type:
+          type: string
+          enum: [normal, added, removed]
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+        filePath:
+          type: string
+        lineNumber:
+          type: integer
+        content:
+          type: string
+        author:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    ViewedFileRecord:
+      type: object
+      properties:
+        filePath:
+          type: string
+        viewedAt:
+          type: string
+          format: date-time
+    RevisionInfo:
+      type: object
+      properties:
+        revision:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [branch, commit]
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+          nullable: true
+    SSEEvent:
+      type: object
+      properties:
+        event:
+          type: string
+        data:
+          type: object
+          additionalProperties: true

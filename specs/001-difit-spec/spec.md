@@ -9,6 +9,22 @@
 
 difit is a CLI tool that displays Git diffs in a GitHub-style viewer interface. It provides both a web-based UI accessible via local server and a terminal UI (TUI) mode. The application supports reviewing local git diffs, comparing commits/branches, and fetching GitHub pull request diffs for review.
 
+## Clarifications
+
+### Session 2026-02-03
+
+- **Q**: Comment retention policy - how long should comments persist?  
+  **A**: Comments are deleted when the target commit is no longer in the repository (e.g., after garbage collection or history rewrite)
+
+- **Q**: Multi-tab synchronization model for concurrent access?  
+  **A**: File-based locking; only one tab can write at a time
+
+- **Q**: Storage scope - should comments be per-repository or global?  
+  **A**: Global storage in `~/.local/share/difit/` (XDG standard), accessible across all repositories
+
+- **Q**: File watching reload UX - auto-reload or manual?  
+  **A**: Auto-reload immediately when any watched file changes (with debounce); only applies to mutable references (HEAD, branch names) not fixed commit SHAs
+
 ## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - View Local Git Diffs (Priority: P1)
@@ -121,8 +137,8 @@ As a developer working in a terminal environment, I want to view diffs without o
 4. **Non-git directory**: When run outside a git repository, the tool should either fail gracefully with a helpful message or fall back to stdin diff mode
 5. **Authentication failures**: When GitHub API authentication fails, detailed error messages should explain how to set up authentication
 6. **Port conflicts**: When the preferred port is in use, the tool should automatically try the next available port
-7. **File watching failures**: When file watching cannot start (e.g., due to OS limitations), the tool should continue without watching
-8. **Concurrent access**: When multiple browser tabs are open, comments should be synchronized (if supported by implementation)
+7. **File watching failures**: When file watching cannot start (e.g., due to OS limitations), the tool should continue without watching; file watching auto-reload only applies to mutable references (HEAD, branch names) and not fixed commit SHAs
+8. **Concurrent access**: When multiple browser tabs are open, the system MUST use file-based locking to ensure only one tab writes to the database at a time; other tabs SHOULD display a warning that data is locked
 
 ## Requirements _(mandatory)_
 
@@ -181,8 +197,9 @@ As a developer working in a terminal environment, I want to view diffs without o
 
 - **FR-038**: The system MUST allow users to add comments on single lines or line ranges
 - **FR-039**: The system MUST associate comments with either the old (deletion) or new (addition) side
-- **FR-040**: The system MUST persist comments in localStorage with repository isolation
-- **FR-041**: The system MUST restore comments when viewing the same diff context
+- **FR-040**: The system MUST persist comments in global SQLite database at `~/.local/share/difit/difit.db` with repository-scoped isolation (repo_path, base_sha, target_sha)
+- **FR-041**: The system MUST restore comments when viewing the same diff context (base/target commits)
+- **FR-041a**: The system SHOULD delete comments when the target commit is no longer reachable in the repository (e.g., after garbage collection) to prevent orphaned data
 - **FR-042**: The system MUST generate prompts in format: `{filepath}:L{line}\n{comment}`
 - **FR-043**: The system MUST support multi-line ranges in format: `{filepath}:L{start}-L{end}\n{comment}`
 - **FR-044**: The system MUST allow copying individual or all comments to clipboard
@@ -213,7 +230,7 @@ As a developer working in a terminal environment, I want to view diffs without o
 
 #### File Watching
 
-- **FR-063**: The system MUST watch for file changes and notify the UI to reload
+- **FR-063**: The system MUST watch for file changes and auto-reload the UI when changes are detected; auto-reload applies only to mutable references (HEAD, branch names, working directory, staging area) and not to fixed commit SHAs
 - **FR-064**: The system MUST use Server-Sent Events (SSE) for real-time notifications
 - **FR-065**: The system MUST support different watch modes: DEFAULT, WORKING, STAGED, DOT, SPECIFIC
 - **FR-066**: The system MUST debounce rapid file changes to prevent excessive reloads
@@ -237,6 +254,7 @@ As a developer working in a terminal environment, I want to view diffs without o
 - **FR-078**: The system MUST provide SSE endpoint for file watching notifications
 - **FR-079**: The system MUST output comments to console when server shuts down (Ctrl+C)
 - **FR-080**: The system MUST support CORS for local development
+- **FR-081**: The system MUST implement file-based locking for the SQLite database to prevent concurrent write conflicts from multiple browser tabs
 
 ### Key Entities
 
@@ -276,12 +294,18 @@ As a developer working in a terminal environment, I want to view diffs without o
 - createdAt: string (ISO timestamp)
 - updatedAt: string (ISO timestamp)
 - codeSnapshot: { content: string; language?: string } (optional context)
+- repoPath: string (absolute path to repository root)
+- baseSha: string (base commit SHA)
+- targetSha: string (target commit SHA)
 
 **ViewedFileRecord**: Tracks viewed state for a file
 
 - filePath: string
 - viewedAt: string (ISO timestamp)
 - diffContentHash: string (SHA-256 hash for change detection)
+- repoPath: string (absolute path to repository root)
+- baseSha: string (base commit SHA)
+- targetSha: string (target commit SHA)
 
 **RevisionInfo**: Represents a git revision for selection
 
