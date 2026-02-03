@@ -63,7 +63,7 @@ function App() {
   const hasUserSelectedRevisionRef = useRef(false);
 
   // Per-commit navigation state
-  const [commitsInRange, setCommitsInRange] = useState<CommitInRange[]>([]);
+  const [rangeCommits, setRangeCommits] = useState<CommitInRange[]>([]); // Original range commits, preserved in single-commit view
   const [selectedCommit, setSelectedCommit] = useState<string | null>(null);
   const [isSingleCommitView, setIsSingleCommitView] = useState(false);
 
@@ -422,6 +422,9 @@ function App() {
       hasUserSelectedRevisionRef.current = true;
       setBaseRevision(newBase);
       setTargetRevision(newTarget);
+      setSelectedCommit(null);
+      setIsSingleCommitView(false);
+      setRangeCommits([]); // Clear range commits so they'll be re-fetched for new range
       setLoading(true);
       setError(null);
       await fetchDiffData(newBase, newTarget);
@@ -472,22 +475,23 @@ function App() {
     try {
       const response = await fetch('/api/commits-in-range');
       if (!response.ok) {
-        setCommitsInRange([]);
+        // Don't clear rangeCommits on error, keep previous value
         return;
       }
       const data = (await response.json()) as { commits: CommitInRange[] };
-      setCommitsInRange(data.commits || []);
+      // Only update rangeCommits when not in single-commit view (preserve original range)
+      if (!isSingleCommitView && data.commits && data.commits.length > 0) {
+        setRangeCommits(data.commits);
+      }
     } catch {
-      setCommitsInRange([]);
+      // Don't clear rangeCommits on error
     }
-  }, []);
+  }, [isSingleCommitView]);
 
   // Fetch commits when diff data changes
   useEffect(() => {
     if (diffData && !diffData.commit.includes('stdin')) {
       void fetchCommitsInRange();
-    } else {
-      setCommitsInRange([]);
     }
   }, [diffData?.commit, fetchCommitsInRange, diffData]);
 
@@ -865,11 +869,11 @@ function App() {
                     options={revisionOptions}
                     disabledValues={getTargetDisabledValues()}
                   />
-                  {commitsInRange.length > 1 && (
+                  {(rangeCommits.length > 1 || selectedCommit !== null) && (
                     <>
                       <span className="text-github-text-muted">|</span>
                       <CommitSelector
-                        commits={commitsInRange}
+                        commits={rangeCommits}
                         selectedCommit={selectedCommit}
                         onSelectCommit={handleCommitSelect}
                         disabled={loading}
